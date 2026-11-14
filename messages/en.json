@@ -1,0 +1,34 @@
+{
+  "common": {
+    "brand": "BRAND",
+    "tagline": "One phone photo in. A full UAE catalog set out, in minutes.",
+    "login": "Login with UAE Phone",
+    "getStarted": "Get Started",
+    "credits": "Credits",
+    "support": "WhatsApp Support",
+    "concierge": "Send Us 20 Pieces",
+    "logout": "Log Out"
+  },
+  "generator": {
+    "title": "Jewellery Studio Generator",
+    "subtitle": "Transform raw smartphone photos into luxury Gulf catalog imagery",
+    "uploadPrompt": "Upload jewellery photo (JPEG, PNG, WebP, HEIC up to 15MB)",
+    "pieceType": "Piece Type",
+    "metalKarat": "Metal & Karat",
+    "stylePack": "Backdrop Style Pack",
+    "buyerPersona": "UAE Buyer Persona / Framing",
+    "specBadge": "Include UAE Spec Badge (Karat / Grams / Price)",
+    "generateButton": "Generate Catalog Set (1 Credit)",
+    "generating": "Generating your catalog set...",
+    "viewResults": "View Results"
+  },
+  "catalog": {
+    "title": "Your Catalog Sets",
+    "compareSlider": "200% Zoom Before / After Compare",
+    "download": "Download",
+    "shareWhatsApp": "Share to WhatsApp",
+    "fidelityPass": "Fidelity Verified",
+    "fidelityWarning": "Inspect Details",
+    "fidelityFail": "Auto-Refunded (Fidelity Threshold)"
+  }
+}

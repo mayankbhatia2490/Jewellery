@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-jakarta: 'Plus Jakarta Sans', sans-serif;
+  --font-plex-arabic: 'IBM Plex Sans Arabic', sans-serif;
+}
+
+body {
+  color: #1e293b;
+  background-color: #faf8f5;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* RTL Specific Rules */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Compare Slider & Zoom custom styles */
+.slider-container {
+  touch-action: pan-y;
+}

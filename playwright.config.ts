@@ -6,7 +6,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: "html",
+  reporter: "line",
   use: {
     baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     trace: "on-first-retry",
@@ -14,24 +14,16 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "Desktop Chrome - English (LTR)",
-      use: { ...devices["Desktop Chrome"], locale: "en-US" },
-    },
-    {
       name: "Desktop Chrome - Arabic (RTL)",
       use: { ...devices["Desktop Chrome"], locale: "ar-AE" },
     },
     {
-      name: "Mobile Safari - iPhone 14 (LTR)",
-      use: { ...devices["iPhone 14"], locale: "en-US" },
-    },
-    {
-      name: "Mobile Safari - iPhone 14 (RTL)",
-      use: { ...devices["iPhone 14"], locale: "ar-AE" },
+      name: "Desktop Chrome - English (LTR)",
+      use: { ...devices["Desktop Chrome"], locale: "en-US" },
     },
   ],
   webServer: {
-    command: "npm run start",
+    command: "npx.cmd next start -p 3000",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

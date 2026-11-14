@@ -1,6 +1,7 @@
-import { mockDb, ImageJobRecord } from "@/lib/db/mock-db";
+import { mockDb } from "@/lib/db/mock-db";
 import { MockImageProvider } from "@/lib/providers/mock-image-provider";
-import { ImageProvider } from "@/types";
+import { FidelityChecker } from "@/lib/fidelity/checker";
+import { ImageProvider, MetalKarat } from "@/types";
 import crypto from "crypto";
 
 export interface WorkerProcessResult {
@@ -8,6 +9,8 @@ export interface WorkerProcessResult {
   status: "done" | "failed" | "needs_review";
   outputsCount: number;
   signedUrls: string[];
+  fidelityScore?: number;
+  fidelityWarning?: boolean;
   error?: string;
 }
 
@@ -20,7 +23,7 @@ export class JobQueueWorker {
 
   /**
    * Process a single job through the state machine:
-   * queued -> processing -> checking -> done | failed
+   * queued -> processing -> checking -> done | failed | needs_review
    */
   async processJob(jobId: string): Promise<WorkerProcessResult> {
     const serviceCtx = { userId: null, role: "service_role" as const };
@@ -84,9 +87,32 @@ export class JobQueueWorker {
         specBadgeData: job.spec_badge_data as any,
       });
 
-      // 4. Transition: processing -> checking (fidelity gate hook)
+      // 4. Transition: processing -> checking (Fidelity Gate evaluation)
       await mockDb.updateImageJobStatus(serviceCtx, jobId, "checking");
       await this.logAudit(jobId, "status_transition", { from: "processing", to: "checking" });
+
+      // Run fidelity check on primary 1:1 output against original input piece
+      const primaryOutput = generationOutput.outputs[0];
+      const fidelityResult = await FidelityChecker.evaluate(
+        inputBuffer,
+        primaryOutput.buffer,
+        job.metal_karat as MetalKarat
+      );
+
+      // Evaluate Fidelity Decision Routing:
+      if (fidelityResult.status === "fail") {
+        const failReason = `Fidelity Gate Failure: ${fidelityResult.reasons.join("; ")}`;
+        await this.handleFidelityFailure(job.user_id, jobId, failReason);
+        return {
+          jobId,
+          status: "failed",
+          outputsCount: 0,
+          signedUrls: [],
+          error: failReason,
+        };
+      }
+
+      const hasWarning = fidelityResult.status === "warn";
 
       // Save outputs to private storage vault and record job_outputs
       const signedUrls: string[] = [];
@@ -113,7 +139,7 @@ export class JobQueueWorker {
           height: out.height,
           file_size_bytes: out.buffer.length,
           mime_type: out.mimeType,
-          fidelity_score: 0.98,
+          fidelity_score: fidelityResult.iouScore,
           saved_to_catalog: false,
           expires_at: expiresAt,
           created_at: new Date().toISOString(),
@@ -123,51 +149,26 @@ export class JobQueueWorker {
       }
 
       // 5. Transition: checking -> done
-      await mockDb.updateImageJobStatus(serviceCtx, jobId, "done");
-      await this.logAudit(jobId, "status_transition", { from: "checking", to: "done" });
+      await mockDb.updateImageJobStatus(serviceCtx, jobId, "done", {
+        fidelity_warning: hasWarning,
+      });
+      await this.logAudit(jobId, "status_transition", {
+        from: "checking",
+        to: "done",
+        fidelityResult,
+      });
 
       return {
         jobId,
         status: "done",
         outputsCount: generationOutput.outputs.length,
         signedUrls,
+        fidelityScore: fidelityResult.iouScore,
+        fidelityWarning: hasWarning,
       };
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Pipeline execution failed";
-
-      // Mark failed
-      await mockDb.updateImageJobStatus(serviceCtx, jobId, "failed", {
-        error_message: errorMsg,
-      });
-      await this.logAudit(jobId, "status_transition", { from: "processing", to: "failed", error: errorMsg });
-
-      // Instant Idempotent Refund
-      const refundKey = `job-refund-${jobId}`;
-      try {
-        const ledgerEntry = await mockDb.appendLedgerEntry(serviceCtx, {
-          id: crypto.randomUUID(),
-          user_id: job.user_id,
-          delta: 1,
-          reason: "refund",
-          idempotency_key: refundKey,
-          reference_id: jobId,
-          created_at: new Date().toISOString(),
-        });
-
-        const refundTicketId = crypto.randomUUID();
-        mockDb.refundTickets.set(refundTicketId, {
-          id: refundTicketId,
-          job_id: jobId,
-          user_id: job.user_id,
-          credits_refunded: 1,
-          reason: `Automatic refund for failed job: ${errorMsg}`,
-          ledger_entry_id: ledgerEntry.id,
-          created_at: new Date().toISOString(),
-        });
-      } catch {
-        // Refund key already appended, idempotent
-      }
-
+      await this.handleFidelityFailure(job.user_id, jobId, errorMsg);
       return {
         jobId,
         status: "failed",
@@ -175,6 +176,42 @@ export class JobQueueWorker {
         signedUrls: [],
         error: errorMsg,
       };
+    }
+  }
+
+  private async handleFidelityFailure(userId: string, jobId: string, reason: string) {
+    const serviceCtx = { userId: null, role: "service_role" as const };
+
+    await mockDb.updateImageJobStatus(serviceCtx, jobId, "failed", {
+      error_message: reason,
+    });
+    await this.logAudit(jobId, "job_failed_auto_refund", { reason });
+
+    // Instant Idempotent Refund in Credit Ledger
+    const refundKey = `job-refund-${jobId}`;
+    try {
+      const ledgerEntry = await mockDb.appendLedgerEntry(serviceCtx, {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        delta: 1,
+        reason: "refund",
+        idempotency_key: refundKey,
+        reference_id: jobId,
+        created_at: new Date().toISOString(),
+      });
+
+      const refundTicketId = crypto.randomUUID();
+      mockDb.refundTickets.set(refundTicketId, {
+        id: refundTicketId,
+        job_id: jobId,
+        user_id: userId,
+        credits_refunded: 1,
+        reason,
+        ledger_entry_id: ledgerEntry.id,
+        created_at: new Date().toISOString(),
+      });
+    } catch {
+      // Already refunded idempotently
     }
   }
 

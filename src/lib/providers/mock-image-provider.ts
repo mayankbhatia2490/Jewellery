@@ -7,10 +7,6 @@ export class MockImageProvider implements ImageProvider {
   async generate(input: GenerationInput): Promise<GenerationOutput> {
     const startTime = Date.now();
 
-    // Determine target dimensions:
-    // 1:1 -> 1080x1080 (WhatsApp Catalog)
-    // 4:5 -> 1080x1350 (Instagram Feed)
-    // 9:16 -> 1080x1920 (Story with safe zones)
     const targets = [
       { aspectRatio: "1:1" as const, width: 1080, height: 1080 },
       { aspectRatio: "4:5" as const, width: 1080, height: 1350 },
@@ -47,23 +43,15 @@ export class MockImageProvider implements ImageProvider {
       const topOffset = Math.floor((target.height - pieceH) / 2);
       const leftOffset = Math.floor((target.width - pieceW) / 2);
 
-      // Create synthetic composite background
-      let composite = sharp({
-        create: {
-          width: target.width,
-          height: target.height,
-          channels: 4,
-          background: { r: bg.r, g: bg.g, b: bg.b, alpha: 1 },
-        },
-      }).composite([
+      const compositeLayers: sharp.OverlayOptions[] = [
         {
           input: resizedPiece,
           top: topOffset,
           left: leftOffset,
         },
-      ]);
+      ];
 
-      // If spec badge is enabled, add corner spec overlay
+      // If spec badge is enabled, add corner spec overlay to layers
       if (input.specBadgeEnabled && input.specBadgeData) {
         const badgeSvg = Buffer.from(`
           <svg width="340" height="90" viewBox="0 0 340 90" xmlns="http://www.w3.org/2000/svg">
@@ -80,16 +68,25 @@ export class MockImageProvider implements ImageProvider {
           </svg>
         `);
 
-        composite = composite.composite([
-          {
-            input: badgeSvg,
-            top: target.height - 130,
-            left: 40,
-          },
-        ]);
+        compositeLayers.push({
+          input: badgeSvg,
+          top: target.height - 130,
+          left: 40,
+        });
       }
 
-      const outputBuffer = await composite.webp({ quality: 95 }).toBuffer();
+      // Single composite call with all layers
+      const outputBuffer = await sharp({
+        create: {
+          width: target.width,
+          height: target.height,
+          channels: 4,
+          background: { r: bg.r, g: bg.g, b: bg.b, alpha: 1 },
+        },
+      })
+        .composite(compositeLayers)
+        .webp({ quality: 95 })
+        .toBuffer();
 
       outputs.push({
         aspectRatio: target.aspectRatio,

@@ -1,5 +1,5 @@
 import { mockDb } from "@/lib/db/mock-db";
-import { MockImageProvider } from "@/lib/providers/mock-image-provider";
+import { MockImageProvider, getImageProvider } from "@/lib/providers";
 import { FidelityChecker } from "@/lib/fidelity/checker";
 import { ImageProvider, MetalKarat } from "@/types";
 import crypto from "crypto";
@@ -18,7 +18,7 @@ export class JobQueueWorker {
   private provider: ImageProvider;
 
   constructor(provider?: ImageProvider) {
-    this.provider = provider || new MockImageProvider();
+    this.provider = provider || getImageProvider();
   }
 
   /**

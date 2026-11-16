@@ -13,6 +13,19 @@ export async function POST(req: NextRequest) {
     const stylePackId = (formData.get("stylePackId") as string) || "gulf_gold_classic";
     const modelPersona = (formData.get("modelPersona") as string) || "none_product_only";
     const specBadgeEnabled = formData.get("specBadgeEnabled") === "true";
+    const weightGrams = formData.get("weightGrams") as string | null;
+    const sku = formData.get("sku") as string | null;
+    const priceAed = formData.get("priceAed") as string | null;
+    const karatLabel = formData.get("karatLabel") as string | null;
+
+    const specBadgeData = specBadgeEnabled
+      ? {
+          karat_label: karatLabel || metalKarat.replace("_", " "),
+          weight_grams: weightGrams ? Number(weightGrams) : undefined,
+          sku: sku || undefined,
+          price_aed: priceAed ? Number(priceAed.replace(/,/g, "")) : undefined,
+        }
+      : undefined;
 
     if (!file) {
       return NextResponse.json({ error: "No image file provided" }, { status: 400 });
@@ -46,6 +59,7 @@ export async function POST(req: NextRequest) {
       style_pack_id: stylePackId,
       model_persona: modelPersona,
       spec_badge_enabled: specBadgeEnabled,
+      spec_badge_data: specBadgeData,
       input_image_path: inputPath,
       input_image_hash: hash,
       status: "queued",

@@ -8,14 +8,18 @@ import {
   Tag,
   Loader2,
   AlertCircle,
-  Image as ImageIcon,
   Check,
+  Search,
 } from "lucide-react";
 import { PieceType, MetalKarat, StylePackId, ModelPersona } from "@/types";
+import { UAE_SAMPLE_PIECES, SamplePiecePreset } from "@/lib/assets/sample-pieces";
+import { MagnifyingLoupe } from "@/components/ui/magnifying-loupe";
 
 export default function StudioPage() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+
   const [pieceType, setPieceType] = useState<PieceType>("necklace");
   const [metalKarat, setMetalKarat] = useState<MetalKarat>("21K_yellow");
   const [stylePackId, setStylePackId] = useState<StylePackId>("gulf_gold_classic");
@@ -38,8 +42,27 @@ export default function StudioPage() {
       const selected = e.target.files[0];
       setFile(selected);
       setPreviewUrl(URL.createObjectURL(selected));
+      setSelectedPresetId(null);
       setError(null);
     }
+  };
+
+  const handleSelectPreset = (preset: SamplePiecePreset) => {
+    setSelectedPresetId(preset.id);
+    const svgContent = preset.svgDataUri.replace(/^data:image\/svg\+xml;utf8,/, "");
+    const blob = new Blob([svgContent], { type: "image/svg+xml" });
+    const sampleFile = new File([blob], `${preset.id}.svg`, { type: "image/svg+xml" });
+    setFile(sampleFile);
+    setPreviewUrl(preset.svgDataUri);
+    setPieceType(preset.pieceType);
+    setMetalKarat(preset.metalKarat as MetalKarat);
+    setStylePackId(preset.suggestedStylePack as StylePackId);
+    setModelPersona(preset.suggestedPersona as ModelPersona);
+    setWeightGrams(preset.weightGrams.toString());
+    setSku(preset.sku);
+    setPriceAed(preset.priceAed.toLocaleString());
+    setSpecBadgeEnabled(true);
+    setError(null);
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -62,6 +85,11 @@ export default function StudioPage() {
       formData.append("stylePackId", stylePackId);
       formData.append("modelPersona", modelPersona);
       formData.append("specBadgeEnabled", String(specBadgeEnabled));
+      if (specBadgeEnabled) {
+        formData.append("weightGrams", weightGrams);
+        formData.append("sku", sku);
+        formData.append("priceAed", priceAed);
+      }
 
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
@@ -100,11 +128,17 @@ export default function StudioPage() {
     <div className="max-w-6xl mx-auto px-4 py-10" dir="rtl">
       {/* Title */}
       <div className="mb-8">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="px-2.5 py-0.5 rounded-full bg-gold-100 text-gold-800 text-[11px] font-bold tracking-wide">
+            استوديو الصياغة الذكي v2.0
+          </span>
+          <span className="text-xs text-sand-500 font-mono">Deira Souk Atelier</span>
+        </div>
         <h1 className="text-3xl font-heading font-black text-slate-900">
           استوديو المجوهرات الذكي
         </h1>
         <p className="text-sand-600 mt-1 text-sm">
-          حول صورة الهاتف العادية إلى طقم كتالوج متكامل (1:1 واتساب، 4:5 انستغرام، 9:16 ستوري) خلال دقائق.
+          حول صورة الهاتف العادية إلى طقم كتالوج متكامل (1:1 واتساب، 4:5 انستغرام، 9:16 ستوري) بدقة الحجر والتخريم.
         </p>
       </div>
 
@@ -135,33 +169,114 @@ export default function StudioPage() {
         </div>
       )}
 
+      {/* 1-Click Souk Presets Picker */}
+      <div className="mb-8 p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-sand-50 to-gold-50/30 border border-gold-200/90 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-gold-600" />
+            <h3 className="text-xs font-bold text-slate-900">
+              جرّب فوراً بنقرة واحدة — عينات أصلية من أسواق الذهب (ديرة والشارقة)
+            </h3>
+          </div>
+          <span className="text-[11px] font-semibold text-gold-700">1-Click Live Test</span>
+        </div>
+        <p className="text-xs text-sand-600 mb-3">
+          اختر أي قطعة من عينات السوق لتعبئة الصورة والمواصفات ونمط العرض فوراً دون الحاجة لرفع صورة من هاتفك:
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {UAE_SAMPLE_PIECES.map((preset) => {
+            const isSelected = selectedPresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => handleSelectPreset(preset)}
+                className={`p-3 rounded-xl border text-right transition-all flex flex-col justify-between ${
+                  isSelected
+                    ? "border-gold-500 bg-gold-100/70 shadow-sm ring-2 ring-gold-400/50"
+                    : "border-sand-200 bg-white hover:border-gold-300 hover:bg-gold-50/40"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-1.5">
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-gold-200 text-gold-950">
+                    {preset.metalKarat.replace("_yellow", "K").replace("_white", "K White").replace("_rose", "K Rose")}
+                  </span>
+                  <span className="text-[10px] font-medium text-sand-600">{preset.weightGrams}g</span>
+                </div>
+                <div className="text-xs font-bold text-slate-900 truncate">
+                  {preset.nameAr}
+                </div>
+                <div className="text-[10px] text-sand-500 truncate mt-0.5">
+                  {preset.nameEn}
+                </div>
+                <div className="text-[11px] font-bold text-gold-800 mt-2">
+                  AED {preset.priceAed.toLocaleString()}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <form onSubmit={handleGenerate} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Side: Upload & Options */}
         <div className="lg:col-span-7 space-y-6">
           {/* 1. Upload Box */}
           <div className="bg-white p-6 rounded-2xl border border-sand-200 shadow-card">
             <label className="block text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
-              <span>1. رفع صورة القطعة (كاميرا الهاتف)</span>
+              <span>1. صورة القطعة (كاميرا الهاتف أو العينة المختارة)</span>
               <span className="text-xs font-normal text-sand-500">JPEG, PNG, WebP, HEIC (حتى 15MB)</span>
             </label>
 
-            <div className="relative border-2 border-dashed border-sand-300 hover:border-gold-500 rounded-xl p-6 text-center bg-sand-50/50 transition-colors">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
-                onChange={handleFileChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-              {previewUrl ? (
-                <div className="flex flex-col items-center">
-                  <img
-                    src={previewUrl}
+            {previewUrl ? (
+              <div className="flex flex-col items-center">
+                <div className="relative w-full p-4 rounded-xl bg-slate-950/5 border border-sand-200 flex flex-col items-center justify-center">
+                  <MagnifyingLoupe
+                    imageSrc={previewUrl}
                     alt="Upload Preview"
-                    className="max-h-48 rounded-lg object-contain border border-sand-200 shadow-sm"
+                    zoomLevel={2.5}
+                    lensSize={160}
+                    className="max-h-64 object-contain shadow-sm"
                   />
-                  <p className="mt-2 text-xs font-semibold text-gold-700">اضغط لتغيير الصورة</p>
+                  <div className="mt-2 text-center text-[11px] text-sand-500 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-gold-600" />
+                    <span>مرر مؤشر الفأرة أو إصبعك فوق الصورة لفحص تفاصيل الصياغة بعدسة 250%</span>
+                  </div>
                 </div>
-              ) : (
+
+                <div className="mt-3 flex items-center gap-3">
+                  <label className="text-xs font-bold text-gold-700 hover:text-gold-800 cursor-pointer">
+                    تغيير الصورة من جهازك
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/heic"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                  <span className="text-sand-300">•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      setPreviewUrl(null);
+                      setSelectedPresetId(null);
+                    }}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    حذف الصورة
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="relative border-2 border-dashed border-sand-300 hover:border-gold-500 rounded-xl p-8 text-center bg-sand-50/50 transition-colors">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic"
+                  onChange={handleFileChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
                 <div className="flex flex-col items-center py-4">
                   <div className="w-12 h-12 rounded-full bg-gold-100 text-gold-700 flex items-center justify-center mb-3">
                     <Upload className="w-6 h-6" />
@@ -171,8 +286,8 @@ export default function StudioPage() {
                     يتم نزع بيانات الموقع (GPS) وتدوير الصورة تلقائياً لحماية خصوصية المحل
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* 2. Piece Type Selection */}
@@ -375,7 +490,7 @@ export default function StudioPage() {
               />
             </div>
             <p className="text-xs text-sand-500 mb-4">
-              إضافة شارة أنيقة غير مدمرة في زاوية الصورة توضح العيار والوزن بالجرام والسعر بالدرهم
+              إضافة شارة أنيقة غير مدمرة في زاوية الصورة توضح العيار والوزن بالجرام والسعر بالدرهم (شامل ضريبة القيمة المضافة 5%)
             </p>
 
             {specBadgeEnabled && (

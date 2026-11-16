@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { BRAND_NAME, BRAND_CONFIG } from "@/config/brand";
 import { BeforeAfterSlider } from "@/components/ui/before-after-slider";
+import { UAE_SAMPLE_PIECES } from "@/lib/assets/sample-pieces";
 import {
   Sparkles,
   Camera,
@@ -17,12 +18,11 @@ import {
 
 export default function HomePage() {
   const [lang, setLang] = useState<"ar" | "en">("ar");
+  const [selectedPieceId, setSelectedPieceId] = useState<string>("sample-choker-22k");
   const isAr = lang === "ar";
 
-  // Sample SVG Data URLs for the Before/After interactive preview demo
-  const sampleBeforePhoto = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><rect width="600" height="600" fill="%23d1d5db"/><circle cx="300" cy="300" r="140" fill="none" stroke="%23b45309" stroke-width="26"/><circle cx="300" cy="200" r="22" fill="%23e2e8f0" stroke="%2394a3b8" stroke-width="3"/><text x="300" y="520" font-family="sans-serif" font-size="20" text-anchor="middle" fill="%234b5563">Phone Photo (Shop Counter / Fluorescent Light)</text></svg>`;
-
-  const sampleAfterPhoto = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><defs><radialGradient id="majlisGlow" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="%23fffbeb"/><stop offset="100%" stop-color="%23d6c7b7"/></radialGradient><linearGradient id="goldGleam" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23fbbf24"/><stop offset="50%" stop-color="%23d97706"/><stop offset="100%" stop-color="%2392400e"/></linearGradient></defs><rect width="600" height="600" fill="url(%23majlisGlow)"/><rect x="100" y="380" width="400" height="160" rx="16" fill="%23f3efea" stroke="%23e7dfd5" stroke-width="4"/><circle cx="300" cy="300" r="140" fill="none" stroke="url(%23goldGleam)" stroke-width="28" filter="drop-shadow(0 20px 25px rgba(0,0,0,0.25))"/><circle cx="300" cy="200" r="24" fill="%23ffffff" stroke="%23cbd5e1" stroke-width="3"/><rect x="40" y="500" width="280" height="70" rx="10" fill="%230f172a" fill-opacity="0.9"/><text x="56" y="528" font-family="sans-serif" font-size="14" font-weight="bold" fill="%23f59e0b">22K Gulf Gold • 14.8g</text><text x="56" y="552" font-family="sans-serif" font-size="13" fill="%23ffffff">AED 4,850 (VAT Inc.)</text></svg>`;
+  const activePiece =
+    UAE_SAMPLE_PIECES.find((p) => p.id === selectedPieceId) || UAE_SAMPLE_PIECES[0];
 
   return (
     <div dir={isAr ? "rtl" : "ltr"} className="min-h-screen bg-sand-50 selection:bg-gold-200">
@@ -119,15 +119,57 @@ export default function HomePage() {
           {/* Interactive Before/After Drag Slider Showcase */}
           <div className="lg:col-span-6">
             <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-card border border-sand-200">
+              {/* Sample Piece Selector Tabs */}
+              <div className="flex items-center gap-1.5 p-1 mb-4 rounded-xl bg-sand-100 overflow-x-auto">
+                {UAE_SAMPLE_PIECES.map((piece) => {
+                  const isSelected = selectedPieceId === piece.id;
+                  return (
+                    <button
+                      key={piece.id}
+                      type="button"
+                      onClick={() => setSelectedPieceId(piece.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                        isSelected
+                          ? "bg-white text-gold-950 shadow-sm border border-gold-300"
+                          : "text-sand-600 hover:text-slate-900 hover:bg-white/60"
+                      }`}
+                    >
+                      {isAr ? piece.nameAr : piece.nameEn}
+                    </button>
+                  );
+                })}
+              </div>
+
               <BeforeAfterSlider
-                beforeImage={sampleBeforePhoto}
-                afterImage={sampleAfterPhoto}
+                beforeImage={activePiece.beforeSvgDataUri}
+                afterImage={activePiece.afterSvgDataUri}
                 beforeLabel={isAr ? "صورة الهاتف العادية" : "Smartphone Photo"}
                 afterLabel={isAr ? "كتالوج الذهب الخليجي" : "UAE Studio Output"}
                 fidelityStatus="pass"
                 fidelityScore={0.98}
                 dir={isAr ? "rtl" : "ltr"}
               />
+
+              <div className="mt-4 pt-3 border-t border-sand-100 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-sand-600">
+                  <span className="font-semibold text-slate-800">
+                    {isAr ? activePiece.nameAr : activePiece.nameEn}
+                  </span>
+                  <span>•</span>
+                  <span>{activePiece.weightGrams}g</span>
+                  <span>•</span>
+                  <span className="font-bold text-gold-700">
+                    AED {activePiece.priceAed.toLocaleString()}
+                  </span>
+                </div>
+                <a
+                  href="/studio"
+                  className="text-gold-700 hover:text-gold-800 font-bold flex items-center gap-1 hover:underline"
+                >
+                  <span>{isAr ? "جرّب هذه القطعة في الاستوديو" : "Open in Studio"}</span>
+                  <ArrowRight className={`w-3.5 h-3.5 ${isAr ? "rotate-180" : ""}`} />
+                </a>
+              </div>
             </div>
           </div>
         </div>

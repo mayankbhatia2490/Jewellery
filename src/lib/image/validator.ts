@@ -58,6 +58,12 @@ export class ImageValidator {
       return "image/heic";
     }
 
+    // SVG: <svg or <?xml
+    const sample = buffer.subarray(0, 128).toString("utf-8").trim();
+    if (sample.startsWith("<svg") || sample.startsWith("<?xml") || sample.includes("<svg")) {
+      return "image/svg+xml";
+    }
+
     return null;
   }
 

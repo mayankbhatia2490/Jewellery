@@ -47,13 +47,9 @@ export default function StudioPage() {
     }
   };
 
-  const handleSelectPreset = (preset: SamplePiecePreset) => {
+  const handleSelectPreset = async (preset: SamplePiecePreset) => {
     setSelectedPresetId(preset.id);
-    const svgContent = preset.svgDataUri.replace(/^data:image\/svg\+xml;utf8,/, "");
-    const blob = new Blob([svgContent], { type: "image/svg+xml" });
-    const sampleFile = new File([blob], `${preset.id}.svg`, { type: "image/svg+xml" });
-    setFile(sampleFile);
-    setPreviewUrl(preset.svgDataUri);
+    setPreviewUrl(preset.beforePhotoUrl);
     setPieceType(preset.pieceType);
     setMetalKarat(preset.metalKarat as MetalKarat);
     setStylePackId(preset.suggestedStylePack as StylePackId);
@@ -63,6 +59,15 @@ export default function StudioPage() {
     setPriceAed(preset.priceAed.toLocaleString());
     setSpecBadgeEnabled(true);
     setError(null);
+
+    try {
+      const res = await fetch(preset.beforePhotoUrl);
+      const blob = await res.blob();
+      const sampleFile = new File([blob], `${preset.id}.jpg`, { type: "image/jpeg" });
+      setFile(sampleFile);
+    } catch {
+      // In SSR/test fallback
+    }
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
